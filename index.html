@@ -14,19 +14,20 @@
 const { useState } = React;
 
 const ITEMS_DEFAULT = [
-  { id: "udon", name: "Udon", price: 55.0 },
-  { id: "pastel", name: "Pastel", price: 13.0 },
-  { id: "imagawayaki", name: "Imagawayaki", price: 8.0 },
+  { id: "agua", name: "Agua", price: 4.0 },
+  { id: "banana_passa", name: "Banana Passa", price: 15.0 },
   { id: "churrasco", name: "Churrasco (espeto)", price: 15.0 },
-  { id: "tempura", name: "Tempura", price: 22.0 },
+  { id: "gomoku", name: "Gomoku Gohan", price: 22.0 },
+  { id: "h2oh", name: "H2OH", price: 8.0 },
+  { id: "imagawayaki", name: "Imagawayaki", price: 8.0 },
+  { id: "inari", name: "Inari Sushi", price: 18.0 },
+  { id: "pastel", name: "Pastel", price: 13.0 },
   { id: "refrigerante", name: "Refrigerante", price: 8.0 },
   { id: "sushi_prato", name: "Sushi Prato", price: 23.0 },
-  { id: "agua", name: "Agua", price: 4.0 },
   { id: "sushi_rolo", name: "Sushi Rolo", price: 20.0 },
-  { id: "h2oh", name: "H2OH", price: 8.0 },
-  { id: "inari", name: "Inari Sushi", price: 18.0 },
-  { id: "banana_passa", name: "Banana Passa", price: 15.0 },
-  { id: "gomoku", name: "Gomoku Gohan", price: 22.0 },
+  { id: "tempura", name: "Tempura", price: 22.0 },
+  { id: "udon", name: "Udon", price: 55.0 },
+  { id: "valor_avulso", name: "Valor Avulso", price: 0.0 },
 ];
 
 const fmt = (v) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
