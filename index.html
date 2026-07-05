@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bazar Fujinkai 2026</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" data-presets="react">
+const { useState } = React;
+
+const ITEMS_DEFAULT = [
+  { id: "udon", name: "Udon", price: 55.0 },
+  { id: "pastel", name: "Pastel", price: 13.0 },
+  { id: "imagawayaki", name: "Imagawayaki", price: 8.0 },
+  { id: "churrasco", name: "Churrasco (espeto)", price: 15.0 },
+  { id: "tempura", name: "Tempura", price: 22.0 },
+  { id: "refrigerante", name: "Refrigerante", price: 8.0 },
+  { id: "sushi_prato", name: "Sushi Prato", price: 23.0 },
+  { id: "agua", name: "Agua", price: 4.0 },
+  { id: "sushi_rolo", name: "Sushi Rolo", price: 20.0 },
+  { id: "h2oh", name: "H2OH", price: 8.0 },
+  { id: "inari", name: "Inari Sushi", price: 18.0 },
+  { id: "banana_passa", name: "Banana Passa", price: 15.0 },
+  { id: "gomoku", name: "Gomoku Gohan", price: 22.0 },
+];
+
+const fmt = (v) => v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+let nextVendaId = 1;
+
+function App() {
+  const [tab, setTab] = useState("pedido");
+  const [itemPrices, setItemPrices] = useState(() =>
+    Object.fromEntries(ITEMS_DEFAULT.map((i) => [i.id, i.price]))
+  );
+  const [editingPrice, setEditingPrice] = useState(null);
+  const [qtds, setQtds] = useState({});
+  const [pago, setPago] = useState("");
+  const [showResumo, setShowResumo] = useState(false);
+  const [vendas, setVendas] = useState([]);
+  const [expandedVenda, setExpandedVenda] = useState(null);
+
+  const items = ITEMS_DEFAULT.map((i) => ({ ...i, price: itemPrices[i.id] }));
+  const setQtd = (id, val) => setQtds((p) => ({ ...p, [id]: Math.max(0, val) }));
+
+  const linhas = items.filter((i) => (qtds[i.id] || 0) > 0).map((i) => ({
+    ...i, qtd: qtds[i.id], subtotal: qtds[i.id] * i.price,
+  }));
+
+  const total = linhas.reduce((s, l) => s + l.subtotal, 0);
+  const pagoNum = parseFloat(pago.replace(",", ".")) || 0;
+  const troco = pagoNum - total;
+
+  const concluirVenda = () => {
+    if (total === 0) return;
+    const venda = {
+      id: nextVendaId++,
+      num: nextVendaId - 1,
+      hora: new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }),
+      itens: [...linhas],
+      total, pago: pagoNum, troco,
+    };
+    setVendas((p) => [venda, ...p]);
+    setQtds({}); setPago(""); setShowResumo(false);
+    setTab("vendas");
+  };
+
+  const limpar = () => { setQtds({}); setPago(""); setShowResumo(false); };
+
+  const startEdit = (id, price) => setEditingPrice({ id, value: String(price) });
+  const confirmEdit = () => {
+    if (!editingPrice) return;
+    const val = parseFloat(editingPrice.value.replace(",", "."));
+    if (!isNaN(val) && val >= 0)
+      setItemPrices((p) => ({ ...p, [editingPrice.id]: val }));
+    setEditingPrice(null);
+  };
+
+  const totalGeral = vendas.reduce((s, v) => s + v.total, 0);
+
+  return (
+    <div style={s.root}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: #fff; }
+        input[type=number]::-webkit-inner-spin-button { -webkit-appearance: none; }
+        ::placeholder { color: #bbb; }
+      `}</style>
+
+      {/* Modal editar preco */}
+      {editingPrice && (
+        <div style={s.modalOverlay} onClick={() => setEditingPrice(null)}>
+          <div style={s.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={s.modalTitle}>EDITAR PRECO</div>
+            <div style={s.modalName}>{items.find((i) => i.id === editingPrice.id)?.name}</div>
+            <div style={s.trocoInputWrap}>
+              <span style={{ color: "#555", fontWeight: 700, fontSize: 13 }}>R$</span>
+              <input
+                type="number" inputMode="decimal" autoFocus
+                value={editingPrice.value}
+                onChange={(e) => setEditingPrice((p) => ({ ...p, value: e.target.value }))}
+                onKeyDown={(e) => e.key === "Enter" && confirmEdit()}
+                style={{ ...s.trocoInput, width: 120 }}
+              />
+            </div>
+            <div style={{ display: "flex", gap: 8, marginTop: 16 }}>
+              <button style={s.modalCancel} onClick={() => setEditingPrice(null)}>Cancelar</button>
+              <button style={s.modalConfirm} onClick={confirmEdit}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={s.header}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <div style={s.headerYear}>2026</div>
+            <div style={s.headerTitle}>BAZAR FUJINKAI</div>
+          </div>
+          {tab === "vendas" && vendas.length > 0 && (
+            <div style={s.totalGeralBadge}>{fmt(totalGeral)}</div>
+          )}
+        </div>
+        <div style={s.headerRule} />
+        <div style={s.tabs}>
+          <button style={{ ...s.tab, ...(tab === "pedido" ? s.tabActive : {}) }} onClick={() => setTab("pedido")}>PEDIDO</button>
+          <button style={{ ...s.tab, ...(tab === "vendas" ? s.tabActive : {}) }} onClick={() => setTab("vendas")}>
+            VENDAS {vendas.length > 0 && <span style={s.badge}>{vendas.length}</span>}
+          </button>
+        </div>
+      </div>
+
+      {/* PEDIDO */}
+      {tab === "pedido" && (
+        <div style={s.body}>
+          <div style={s.sectionLabel}>ITENS</div>
+          {items.map((item) => (
+            <ItemRow key={item.id} item={item} qtd={qtds[item.id] || 0}
+              onChange={(v) => setQtd(item.id, v)}
+              onEdit={() => startEdit(item.id, itemPrices[item.id])} />
+          ))}
+
+          {total > 0 && (
+            <div style={s.totalBar} onClick={() => setShowResumo(!showResumo)}>
+              <span style={s.totalLabel}>TOTAL</span>
+              <div style={s.totalRight}>
+                <span style={s.totalVal}>{fmt(total)}</span>
+                <span style={s.chevron}>{showResumo ? "▲" : "▼"}</span>
+              </div>
+            </div>
+          )}
+
+          {showResumo && total > 0 && (
+            <div style={s.resumo}>
+              <div style={s.sectionLabel}>RESUMO</div>
+              {linhas.map((l) => (
+                <div key={l.id} style={s.resumoRow}>
+                  <span style={s.resumoNome}>{l.name} x{l.qtd}</span>
+                  <span style={s.resumoVal}>{fmt(l.subtotal)}</span>
+                </div>
+              ))}
+              <div style={s.resumoDivider} />
+              <div style={{ ...s.resumoRow, marginBottom: 0 }}>
+                <span style={{ fontSize: 15, fontWeight: 700, color: "#1a1a1a", letterSpacing: 1 }}>TOTAL</span>
+                <span style={{ fontSize: 18, fontWeight: 700, color: "#e91e8c" }}>{fmt(total)}</span>
+              </div>
+              <div style={s.trocoBox}>
+                <div style={s.sectionLabel}>VALOR PAGO / TROCO</div>
+                <div style={s.trocoRow}>
+                  <span style={s.trocoLabel}>Valor pago</span>
+                  <div style={s.trocoInputWrap}>
+                    <span style={{ color: "#555", fontWeight: 700, fontSize: 13 }}>R$</span>
+                    <input type="number" inputMode="decimal" placeholder="0,00" value={pago}
+                      onChange={(e) => setPago(e.target.value)} style={s.trocoInput} />
+                  </div>
+                </div>
+                {pagoNum > 0 && (
+                  <div style={{ ...s.trocoResultado, background: troco >= 0 ? "#fff0f8" : "#fde8f4", color: troco >= 0 ? "#e91e8c" : "#c62828", borderColor: troco >= 0 ? "#f5a8d8" : "#f5a8d8" }}>
+                    <span style={{ fontSize: 11, letterSpacing: 2, textTransform: "uppercase", fontWeight: 700 }}>{troco >= 0 ? "Troco" : "Falta"}</span>
+                    <span style={{ fontSize: 22, fontWeight: 700 }}>{fmt(troco >= 0 ? troco : -troco)}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {total > 0 && (
+            <>
+              <button style={s.concluirBtn} onClick={concluirVenda}>CONCLUIR VENDA</button>
+              <button style={s.resetBtn} onClick={limpar}>LIMPAR PEDIDO</button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* VENDAS */}
+      {tab === "vendas" && (
+        <div style={s.body}>
+          {vendas.length === 0 ? (
+            <div style={s.empty}>
+              <div style={s.emptyTitle}>Nenhuma venda ainda</div>
+              <div style={s.emptySub}>Conclua um pedido para ver aqui</div>
+              <button style={s.voltarBtn} onClick={() => setTab("pedido")}>IR PARA PEDIDO</button>
+            </div>
+          ) : (
+            <>
+              <div style={s.geralCard}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <span style={s.sectionLabel}>TOTAL GERAL</span>
+                  <span style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: "#e91e8c", letterSpacing: 2 }}>{fmt(totalGeral)}</span>
+                </div>
+                <div style={{ display: "flex", gap: 12 }}>
+                  <div style={s.geralStat}>
+                    <div style={s.geralStatVal}>{vendas.length}</div>
+                    <div style={s.geralStatLabel}>vendas</div>
+                  </div>
+                  <div style={s.geralStat}>
+                    <div style={s.geralStatVal}>{fmt(totalGeral / vendas.length)}</div>
+                    <div style={s.geralStatLabel}>ticket medio</div>
+                  </div>
+                </div>
+              </div>
+              <div style={s.sectionLabel}>HISTORICO</div>
+              {vendas.map((venda) => (
+                <div key={venda.id} style={s.vendaCard}>
+                  <div style={s.vendaHeader} onClick={() => setExpandedVenda(expandedVenda === venda.id ? null : venda.id)}>
+                    <div>
+                      <div style={s.vendaNum}>Venda #{venda.num}</div>
+                      <div style={s.vendaHora}>{venda.hora}</div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={s.vendaTotal}>{fmt(venda.total)}</span>
+                      <span style={{ fontSize: 11, color: "#aaa" }}>{expandedVenda === venda.id ? "▲" : "▼"}</span>
+                    </div>
+                  </div>
+                  {expandedVenda === venda.id && (
+                    <div style={s.vendaDetalhe}>
+                      <div style={s.resumoDivider} />
+                      {venda.itens.map((l) => (
+                        <div key={l.id} style={s.resumoRow}>
+                          <span style={s.resumoNome}>{l.name} x{l.qtd}</span>
+                          <span style={s.resumoVal}>{fmt(l.subtotal)}</span>
+                        </div>
+                      ))}
+                      <div style={s.resumoDivider} />
+                      <div style={s.resumoRow}>
+                        <span style={{ ...s.resumoNome, fontWeight: 700, color: "#333" }}>Total</span>
+                        <span style={{ ...s.resumoVal, color: "#e91e8c", fontWeight: 700 }}>{fmt(venda.total)}</span>
+                      </div>
+                      {venda.pago > 0 && (
+                        <>
+                          <div style={s.resumoRow}>
+                            <span style={s.resumoNome}>Pago</span>
+                            <span style={s.resumoVal}>{fmt(venda.pago)}</span>
+                          </div>
+                          <div style={s.resumoRow}>
+                            <span style={s.resumoNome}>{venda.troco >= 0 ? "Troco" : "Falta"}</span>
+                            <span style={{ ...s.resumoVal, color: venda.troco >= 0 ? "#2a9d2a" : "#c62828" }}>
+                              {fmt(venda.troco >= 0 ? venda.troco : -venda.troco)}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <button style={s.voltarBtn} onClick={() => setTab("pedido")}>+ NOVO PEDIDO</button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Counter({ val, onChange }) {
+  return (
+    <div style={s.counter}>
+      <button style={s.counterBtnMinus} onClick={() => onChange(val - 1)}>−</button>
+      <span style={s.counterVal}>{val}</span>
+      <button style={s.counterBtnPlus} onClick={() => onChange(val + 1)}>+</button>
+    </div>
+  );
+}
+
+function ItemRow({ item, qtd, onChange, onEdit }) {
+  return (
+    <div style={{ ...s.card, borderColor: qtd > 0 ? "#e91e8c" : "#ebebeb" }}>
+      <div style={s.cardLeft}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={s.itemName}>{item.name}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, marginTop: 2 }}>
+            <span style={s.itemPrice}>R$ {item.price.toFixed(2).replace(".", ",")}</span>
+            <button style={s.editBtn} onClick={onEdit} title="Editar preco">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      <div style={s.cardRight}>
+        {qtd > 0 && <span style={s.subtotal}>{(qtd * item.price).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</span>}
+        <Counter val={qtd} onChange={onChange} />
+      </div>
+    </div>
+  );
+}
+
+const s = {
+  root: { fontFamily: "'IBM Plex Sans', sans-serif", maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: "#fff", color: "#1a1a1a" },
+  header: { background: "#fff", borderBottom: "1px solid #f0f0f0", padding: "24px 20px 0", position: "sticky", top: 0, zIndex: 10 },
+  headerYear: { fontFamily: "'Bebas Neue', sans-serif", fontSize: 13, color: "#e91e8c", letterSpacing: 6 },
+  headerTitle: { fontFamily: "'Bebas Neue', sans-serif", fontSize: 38, color: "#1a1a1a", lineHeight: 1, letterSpacing: 3 },
+  headerRule: { height: 2, background: "#e91e8c", width: 48, margin: "8px 0 0" },
+  totalGeralBadge: { fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#e91e8c", letterSpacing: 2 },
+  tabs: { display: "flex", marginTop: 12 },
+  tab: { flex: 1, padding: "10px 0", border: "none", background: "transparent", fontFamily: "'IBM Plex Sans', sans-serif", fontSize: 11, fontWeight: 700, letterSpacing: 3, color: "#bbb", cursor: "pointer", borderBottom: "2px solid transparent" },
+  tabActive: { color: "#e91e8c", borderBottom: "2px solid #e91e8c" },
+  badge: { display: "inline-block", background: "#e91e8c", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 10, padding: "1px 6px", marginLeft: 6 },
+  body: { padding: "16px 14px 50px" },
+  sectionLabel: { fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: 3, marginBottom: 10, marginTop: 4 },
+  card: { background: "#fafafa", border: "1px solid #ebebeb", borderRadius: 4, padding: "12px 14px", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, transition: "border-color 0.15s" },
+  cardLeft: { display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 },
+  cardRight: { display: "flex", alignItems: "center", gap: 10, flexShrink: 0 },
+  itemName: { fontSize: 14, fontWeight: 600, color: "#1a1a1a" },
+  itemPrice: { fontSize: 12, color: "#999" },
+  editBtn: { background: "none", border: "none", cursor: "pointer", padding: "0 2px", lineHeight: 1, display: "inline-flex", alignItems: "center" },
+  subtotal: { fontSize: 13, fontWeight: 700, color: "#e91e8c", minWidth: 48, textAlign: "right" },
+  counter: { display: "flex", alignItems: "center", gap: 6 },
+  counterBtnMinus: { width: 30, height: 30, border: "1px solid #e0e0e0", borderRadius: 2, background: "#f5f5f5", color: "#999", fontSize: 18, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, fontFamily: "inherit" },
+  counterBtnPlus: { width: 30, height: 30, border: "1px solid #e91e8c", borderRadius: 2, background: "#e91e8c", color: "#fff", fontSize: 18, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", lineHeight: 1, fontFamily: "inherit" },
+  counterVal: { fontSize: 16, fontWeight: 700, minWidth: 22, textAlign: "center", color: "#1a1a1a" },
+  totalBar: { background: "#e91e8c", borderRadius: 4, padding: "14px 18px", display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 8, marginBottom: 6, cursor: "pointer" },
+  totalLabel: { fontFamily: "'Bebas Neue', sans-serif", fontSize: 22, color: "#fff", letterSpacing: 3 },
+  totalRight: { display: "flex", alignItems: "center", gap: 10 },
+  totalVal: { fontSize: 20, fontWeight: 700, color: "#fff" },
+  chevron: { fontSize: 11, color: "rgba(255,255,255,0.7)" },
+  resumo: { background: "#fafafa", border: "1px solid #ebebeb", borderRadius: 4, padding: "16px", marginBottom: 6 },
+  resumoRow: { display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10, gap: 8 },
+  resumoNome: { fontSize: 13, color: "#999", flex: 1 },
+  resumoVal: { fontSize: 13, fontWeight: 600, color: "#333", flexShrink: 0 },
+  resumoDivider: { height: 1, background: "#ebebeb", margin: "10px 0" },
+  trocoBox: { marginTop: 18, paddingTop: 16, borderTop: "1px solid #ebebeb" },
+  trocoRow: { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 10 },
+  trocoLabel: { fontSize: 13, fontWeight: 600, color: "#666" },
+  trocoInputWrap: { display: "flex", alignItems: "center", background: "#fff", border: "1px solid #e0e0e0", borderRadius: 4, padding: "7px 12px", gap: 6 },
+  trocoInput: { border: "none", outline: "none", fontSize: 16, fontWeight: 700, width: 90, color: "#1a1a1a", background: "transparent", fontFamily: "inherit" },
+  trocoResultado: { border: "1px solid", borderRadius: 4, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 10 },
+  concluirBtn: { width: "100%", padding: "15px", border: "none", borderRadius: 4, background: "#e91e8c", color: "#fff", fontSize: 13, fontWeight: 700, letterSpacing: 3, cursor: "pointer", marginTop: 14, fontFamily: "inherit" },
+  resetBtn: { width: "100%", padding: "13px", border: "1px solid #e0e0e0", borderRadius: 4, background: "transparent", color: "#bbb", fontSize: 11, fontWeight: 700, letterSpacing: 3, cursor: "pointer", marginTop: 8, fontFamily: "inherit" },
+  geralCard: { background: "#fafafa", border: "1px solid #ebebeb", borderRadius: 4, padding: "16px", marginBottom: 16 },
+  geralStat: { flex: 1, background: "#fff", border: "1px solid #ebebeb", borderRadius: 4, padding: "10px 12px" },
+  geralStatVal: { fontSize: 16, fontWeight: 700, color: "#1a1a1a" },
+  geralStatLabel: { fontSize: 10, color: "#aaa", letterSpacing: 2, textTransform: "uppercase", marginTop: 2 },
+  vendaCard: { background: "#fafafa", border: "1px solid #ebebeb", borderRadius: 4, marginBottom: 6, overflow: "hidden" },
+  vendaHeader: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "13px 14px", cursor: "pointer" },
+  vendaNum: { fontSize: 14, fontWeight: 700, color: "#1a1a1a" },
+  vendaHora: { fontSize: 11, color: "#aaa", marginTop: 2 },
+  vendaTotal: { fontSize: 16, fontWeight: 700, color: "#e91e8c" },
+  vendaDetalhe: { padding: "0 14px 14px" },
+  empty: { textAlign: "center", padding: "60px 20px" },
+  emptyTitle: { fontFamily: "'Bebas Neue', sans-serif", fontSize: 28, color: "#ccc", letterSpacing: 3 },
+  emptySub: { fontSize: 13, color: "#bbb", marginTop: 6, marginBottom: 24 },
+  voltarBtn: { display: "block", width: "100%", padding: "13px", border: "1px solid #e91e8c", borderRadius: 4, background: "transparent", color: "#e91e8c", fontSize: 11, fontWeight: 700, letterSpacing: 3, cursor: "pointer", marginTop: 16, fontFamily: "inherit" },
+  modalOverlay: { position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 100, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 },
+  modal: { background: "#fff", borderRadius: 8, padding: "24px 20px", width: "100%", maxWidth: 320 },
+  modalTitle: { fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: 3, textTransform: "uppercase", marginBottom: 6 },
+  modalName: { fontSize: 16, fontWeight: 700, color: "#1a1a1a", marginBottom: 16 },
+  modalCancel: { flex: 1, padding: "12px", border: "1px solid #e0e0e0", borderRadius: 4, background: "transparent", color: "#aaa", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" },
+  modalConfirm: { flex: 1, padding: "12px", border: "none", borderRadius: 4, background: "#e91e8c", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" },
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(App));
+</script></body></html>
