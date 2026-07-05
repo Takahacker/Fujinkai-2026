@@ -37,6 +37,7 @@ let nextVendaId = 1;
 
 function App() {
   const [tab, setTab] = useState("pedido");
+  const [busca, setBusca] = useState("");
   const [itemPrices, setItemPrices] = useState(() =>
     Object.fromEntries(ITEMS_DEFAULT.map((i) => [i.id, i.price]))
   );
@@ -48,6 +49,7 @@ function App() {
   const [expandedVenda, setExpandedVenda] = useState(null);
 
   const items = ITEMS_DEFAULT.map((i) => ({ ...i, price: itemPrices[i.id] }));
+  const itemsFiltrados = items.filter((i) => i.name.toLowerCase().includes(busca.trim().toLowerCase()));
   const setQtd = (id, val) => setQtds((p) => ({ ...p, [id]: Math.max(0, val) }));
 
   const linhas = items.filter((i) => (qtds[i.id] || 0) > 0).map((i) => ({
@@ -142,16 +144,26 @@ function App() {
       {/* PEDIDO */}
       {tab === "pedido" && (
         <div style={s.body}>
-          {CATEGORIAS.map((categoria) => (
-            <React.Fragment key={categoria}>
-              <div style={s.sectionLabel}>{categoria.toUpperCase()}</div>
-              {items.filter((item) => item.categoria === categoria).map((item) => (
-                <ItemRow key={item.id} item={item} qtd={qtds[item.id] || 0}
-                  onChange={(v) => setQtd(item.id, v)}
-                  onEdit={() => startEdit(item.id, itemPrices[item.id])} />
-              ))}
-            </React.Fragment>
-          ))}
+          <input
+            type="text" placeholder="Buscar item..." value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            style={s.buscaInput}
+          />
+
+          {CATEGORIAS.map((categoria) => {
+            const itensCategoria = itemsFiltrados.filter((item) => item.categoria === categoria);
+            if (itensCategoria.length === 0) return null;
+            return (
+              <React.Fragment key={categoria}>
+                <div style={s.sectionLabel}>{categoria.toUpperCase()}</div>
+                {itensCategoria.map((item) => (
+                  <ItemRow key={item.id} item={item} qtd={qtds[item.id] || 0}
+                    onChange={(v) => setQtd(item.id, v)}
+                    onEdit={() => startEdit(item.id, itemPrices[item.id])} />
+                ))}
+              </React.Fragment>
+            );
+          })}
 
           {total > 0 && (
             <div style={s.totalBar} onClick={() => setShowResumo(!showResumo)}>
@@ -334,6 +346,7 @@ const s = {
   tabActive: { color: "#e91e8c", borderBottom: "2px solid #e91e8c" },
   badge: { display: "inline-block", background: "#e91e8c", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: 10, padding: "1px 6px", marginLeft: 6 },
   body: { padding: "16px 14px 50px" },
+  buscaInput: { width: "100%", padding: "12px 14px", marginBottom: 16, border: "1px solid #e0e0e0", borderRadius: 4, fontSize: 14, fontFamily: "inherit", color: "#1a1a1a", background: "#fafafa", outline: "none" },
   sectionLabel: { fontSize: 10, fontWeight: 700, color: "#aaa", letterSpacing: 3, marginBottom: 10, marginTop: 4 },
   card: { background: "#fafafa", border: "1px solid #ebebeb", borderRadius: 4, padding: "12px 14px", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, transition: "border-color 0.15s" },
   cardLeft: { display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 },
